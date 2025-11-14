@@ -7,27 +7,15 @@
 ##
 ##*************************** 
 
-## _ Packages used -------
-
-# Install packages
-# install.packages("VennDiagram")
-# install.packages("rnaturalearth")
-# install.packages("rnaturalearthdata")
-# install.packages("sf")
-# install.packages("skimr")
-
-
 # Run libraries
-library(stats)
 library(tidyverse)
 library(viridis)
-library(dplyr)
-library(ggplot2)
 library(VennDiagram)
 library(rnaturalearth)
-library(rnaturalearthdata)
 library(sf)
 library(skimr)
+library(DataExplorer)
+
 
 ## _ OVERVIEW -------
 
