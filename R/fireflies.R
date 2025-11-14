@@ -1,21 +1,20 @@
 ###***************************
 ## MBINF 6210
 ##
-## Yumna Khan - 1094825
+## Yumna Khan (original author)- 1094825
 ##
-## 2025-09-27
+## 2025-09-27 (written)
+##
+##*************************** 
+##  
+## Primary Editor: Rameen Jafri  
+## Additional Contributors: Arwa Sheheryar, Liona Vu, and Dr. Karl Cottenie 
+##
+## This script reflects collaborative revisions to improve clarity, reproducibility, and analytical workflow.
 ##
 ##*************************** 
 
-## _ Packages used -------
-
-# Install packages
-# install.packages("VennDiagram")
-# install.packages("rnaturalearth")
-# install.packages("rnaturalearthdata")
-# install.packages("sf")
-# install.packages("skimr")
-
+## ----- SECTION 0: Dependencies -------
 
 # Run libraries
 library(tidyverse)
@@ -39,6 +38,8 @@ fireflies = vroom::vroom("data/fireflies_data.tsv", col_select = -c(91)) %>%
 fireflies %>% 
   problems() %>% 
   View()
+
+# RJ - See resolving_parsing_issues file in R folder for more details. 
 
 
 # *************************************************************************
