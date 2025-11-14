@@ -7,99 +7,173 @@
 ##
 ##*************************** 
 
+## _ Packages used -------
+
+# Install packages
+# install.packages("VennDiagram")
+# install.packages("rnaturalearth")
+# install.packages("rnaturalearthdata")
+# install.packages("sf")
+# install.packages("skimr")
+
+
 # Run libraries
+library(stats)
 library(tidyverse)
 library(viridis)
+library(dplyr)
+library(ggplot2)
 library(VennDiagram)
 library(rnaturalearth)
 library(rnaturalearthdata)
-library(stats)
 library(sf)
 library(skimr)
-library(visdat)
-library(DataExplorer)
 
-# *************************************************************************
-# -------------------- SECTION 1: Explore the data  -----------------------
-# *************************************************************************
+## _ OVERVIEW -------
 
 # This script analyzes the BIN and species richness of fireflies by country, and explores richness vs elevation in Costa Rica
 
 # Main Question: Tropical areas (e.g. Costa Rica) will have a higher firefly species and BIN richness than temperate areas (e.g. Canada/US)
 
-fireflies = vroom::vroom("data/fireflies_data.tsv", col_select = -c(91)) %>%
-  rename(Country = 'country/ocean', 'BINs' = 'bin_uri', 'Species' = 'species')
-fireflies %>% 
-  problems() %>% 
-  View()
+getwd()
 
-# *************************************************************************
-# -------------------- SECTION 2: Explore the data  -----------------------
-# *************************************************************************
+fireflies <- read_tsv("../data/fireflies_data.tsv")
+fireflies
 
+## _ Explore the data -------
 class(fireflies)
 summary(fireflies)
 skimr::skim(fireflies)
 
-# RJ - Overview of dataset structure, variable types, and completeness.
-# RJ - The intro plot shows that roughly half the dataset has missing values, suggesting the need for cleaning or feature filtering before further analysis.
-plot_intro(fireflies)
 
-# RJ - Visual summary of missing data across all columns.
-# RJ - Many features show high NA proportions, so we should focus on variables with acceptable completeness to avoid biased results.
-plot_missing(fireflies)
+# Find the BINs and Species in the top 5 countries (top 5 countries were chosen due to the lack of samples from other countries)
 
-# RJ - Keep only features with 30% or less missing data.
-# RJ - This threshold keeps variables with sufficient information for analysis while removing those too incomplete to interpret reliably.
-fire_filtered <- fireflies %>% 
-  select(where(~ mean(is.na(.)) <= 0.30))
+sort(table(fireflies$`country/ocean`), decreasing = TRUE)[1:5]
+nrow(fireflies)
 
-# RJ - Check which variables were retained after filtering to confirm which are complete enough for use.
-colnames(fire_filtered)
+# Subset each country
+df_country_can <- subset(fireflies, `country/ocean` == "Canada")
+df_country_can
 
-# RJ - Visualize numeric variable distributions to identify skew, outliers, or trends.
-# RJ - Elevation shows noticeable variation worth exploring further. Numerical IDs (geoid, specimenid, taxid) are excluded since they’re identifiers, not true continuous data.
-plot_histogram(fire_filtered)
+df_country_us <- subset(fireflies, `country/ocean` == "United States")
+df_country_us
 
-# *************************************************************************
-# ---------- SECTION 3: TOP 5 COUNTRIES — BIN AND SPECIES SUMMARY --------
-# *************************************************************************
+df_country_cr <- subset(fireflies, `country/ocean` == "Costa Rica")
+df_country_cr
 
-# RJ - Identify and summarize the top 5 countries based on sample count. Focusing on these reduces noise from countries with very few observations, ensuring more reliable comparisons.
-top_countries <- fireflies %>%
-  filter(!is.na(`Country`)) %>%
-  count(`Country`, sort = TRUE, name = "Record_Count") %>%
-  slice_head(n = 5)
-top_countries
+df_country_m <- subset(fireflies, `country/ocean` == "Malaysia")
+df_country_m
 
-# RJ - Count the number of unique BINs (genetic clusters) for each of the top 5 countries. Filtering removes missing or blank BIN entries before summarizing.
-bin_counts <- fireflies %>%
-  filter(`Country` %in% top_countries$'Country', !is.na(BINs), BINs != "") %>%
-  distinct(`Country`, BINs) %>%
-  count(`Country`, name = "BINs")
+df_country_p <- subset(fireflies, `country/ocean` == "Peru")
+df_country_p
 
-# RJ - Count the number of unique species per country, using the same top 5-country filter. This provides a comparable measure of taxonomic diversity alongside BIN richness.
-species_counts <- fireflies %>%
-  filter(`Country` %in% top_countries$'Country', !is.na(Species), Species != "") %>%
-  distinct(`Country`, Species) %>%
-  count(`Country`, name = "Species")
 
-# RJ - Merge sample count, BIN count, and species count into one summary table for downstream analysis. The resulting dataframe shows overall sampling effort and biodiversity measures per country.
-summary_table <- top_countries %>% 
-  left_join(bin_counts, by = "Country") %>% 
-  left_join(species_counts, by = "Country")
-summary_table
+### 1. Find the Number of unique BINs per Country (remove NAs to prevent inflating BIN richness) -------
 
-# *************************************************************************
-# ----------------------- SECTION 4: PLOTTING ANALYSIS --------------------
-# *************************************************************************
+# Canada
+bin_can <- df_country_can$bin_uri
+bin_can <- bin_can[bin_can != "" & !is.na(bin_can)]
+bin_can <- length(unique(bin_can))
+bin_can
 
-### PLOT 1: Firefly Species VS BIN Richness (Top 5 Countries Barplot) -----
+# United States
+bin_us <- df_country_us$bin_uri
+bin_us <- bin_us[bin_us != "" & !is.na(bin_us)]
+bin_us <- length(unique(bin_us))
+bin_us
 
-# RJ - Remove raw record counts to focus on diversity metrics.
-richness <- subset(summary_table, select = -Record_Count)
+# Costa Rica
+bin_cr <- df_country_cr$bin_uri
+bin_cr <- bin_cr[bin_cr != "" & !is.na(bin_cr)]
+bin_cr <- length(unique(bin_cr))
+bin_cr
 
-# Reshape the data for visualization. Pivoting BINs and Species into long format allows easy comparison of both diversity metrics in a single ggplot.
+# Malaysia
+bin_m <- df_country_m$bin_uri
+bin_m <- bin_m[bin_m != "" & !is.na(bin_m)]
+bin_m <- length(unique(bin_m))
+bin_m
+
+# Peru
+bin_p <- df_country_p$bin_uri
+bin_p <- bin_p[bin_p != "" & !is.na(bin_p)]
+bin_p <- length(unique(bin_p))
+bin_p
+
+# Check if all the NAs are removed for BINs
+sum(is.na(bin_can))
+sum(is.na(bin_us))
+sum(is.na(bin_cr))
+sum(is.na(bin_m))
+sum(is.na(bin_p))
+
+
+### 2. Find the Number of Species per Country (remove NAs to prevent inflating species richness) -------
+
+# Canada
+species_can <- df_country_can$species
+species_can <- species_can[species_can != "" & !is.na(species_can)]
+species_can <- length(unique(species_can))
+species_can
+
+# United States
+species_us <- df_country_us$species
+species_us <- species_us[species_us != "" & !is.na(species_us)]
+species_us <- length(unique(species_us))
+species_us
+
+# Costa Rica
+species_cr <- df_country_cr$species
+species_cr <- species_cr[species_cr != "" & !is.na(species_cr)]
+species_cr <- length(unique(species_cr))
+species_cr
+
+# Malaysia
+species_m <- df_country_m$species
+species_m <- species_m[species_m != "" & !is.na(species_m)]
+species_m <- length(unique(species_m))
+species_m
+
+# Peru
+species_p <- df_country_p$species
+species_p <- species_p[species_p != "" & !is.na(species_p)]
+species_p <- length(unique(species_p))
+species_p
+
+# Check if all the NAs are removed for BINs
+sum(is.na(species_can))
+sum(is.na(species_us))
+sum(is.na(species_cr))
+sum(is.na(species_m))
+sum(is.na(species_p))
+
+
+# Reproducibility checkpoint (confirms the data has been manipulated correctly)
+checkpoint_summary <- data.frame(
+  country = c("Canada", "United States", "Costa Rica", "Malaysia", "Peru"),
+  records = c(
+    nrow(df_country_can),
+    nrow(df_country_us),
+    nrow(df_country_cr),
+    nrow(df_country_m),
+    nrow(df_country_p)
+  ),
+  unique_bins = c(bin_can, bin_us, bin_cr, bin_m, bin_p),
+  unique_species = c(species_can, species_us, species_cr, species_m, species_p)
+)
+checkpoint_summary
+
+
+### 3. Barplot of Species and BINs vs Country -------
+
+# Group BIN richness for top 5 countries
+richness <- data.frame(
+  Country = c("Canada", "United States", "Costa Rica", "Malaysia", "Peru"),
+  Species = c(species_can, species_us, species_cr, species_m, species_p),
+  BINs = c(bin_can, bin_us, bin_cr, bin_m, bin_p)
+)
+
+# Reshape for ggplot (used pivot longer to reshape the graph to have species and BIN side by side)
 richness_long <- richness %>%
   pivot_longer(cols = c(Species, BINs), names_to = "Type", values_to = "Count")
 
@@ -119,14 +193,17 @@ ggplot(richness_long, aes(x = Country, y = Count, fill = Type)) +
   theme_minimal(base_size = 14) +
   theme(axis.text.x = element_text(angle = 30, hjust = 1))
 
-### PLOT 2 - World map to view the BIN richness of specimens collected -----
-# around the world. NOTE: All countries are shown to illustrate the limited global BIN richness, rather than focusing only on the top 5.
+
+### 4. Plot world map to view the BIN richness of specimens collected around the world -------
+# NOTE: All countries are shown to illustrate the limited global BIN richness, rather than focusing only on the top 5.
 
 # Calculate bin richness per country
 country_data <- fireflies %>%
-  filter(!is.na(BINs), BINs != "") %>%
+  filter(!is.na(bin_uri), bin_uri != "") %>%
   group_by(country_iso) %>%
-  summarise(bin_richness = n_distinct(BINs))
+  summarise(bin_richness = n_distinct(bin_uri))
+
+country_data
 
 # Load world country shapefile data for plotting geographic maps
 world <- ne_countries(scale = "medium", returnclass = "sf")
@@ -151,10 +228,9 @@ ggplot(data = world_bin) +
     legend.position = "left",
     plot.title = element_text(hjust = 0.5)
   )
-## RJ - Costa Rica appears as the only country highlighted in yellow, suggesting a distinct BIN richness pattern that merits further exploration. 
 
 
-#### Performance verification: -----------------------
+# Performance verification:
 # Confirms that the world map correctly represents BIN richness
 # Compares total number of BINs across dataset vs mapped tools
 
@@ -164,8 +240,9 @@ sum(table(fireflies$country_iso))
 
 # Find the total bins collected
 total_bins <- fireflies %>%
-  filter(!is.na(BINs), BINs != "") %>%
-  summarise(total_bins = n_distinct(BINs))
+  filter(!is.na(bin_uri), bin_uri != "") %>%
+  summarise(total_bins = n_distinct(bin_uri))
+
 total_bins
 
 # Find the total number of bins plotted on the world map
@@ -174,32 +251,28 @@ mapped_bins
 
 # Check if bins overlap with other countries
 bin_country_overlap <- fireflies %>%
-  filter(!is.na(BINs), BINs != "") %>%
-  group_by(BINs) %>%
+  filter(!is.na(bin_uri), bin_uri != "") %>%
+  group_by(bin_uri) %>%
   summarise(num_countries = n_distinct(country_iso)) %>%
   count(num_countries)
 
 bin_country_overlap
 # Country BINs overlap! Therefore, the total bins (838) equals the total of n in bin_country_overlap. The world map has been plotted correctly
 
-### PLOT 3: Examining Costa Rica Elevation Distribution -------
+
+### 5. Plot the linear regression model for Costa Rica (Tropical region) -------
 
 # Figure checkpoint: distribution of elevation in Costa Rica. Verifies data is reasonable with no extreme outliers or missing data
-
-fireflies %>%
-  filter(Country == "Costa Rica", !is.na(elev), elev != 999) %>%
-  ggplot(aes(x = elev)) +
-  geom_histogram(binwidth = 100) +
-  labs(title = "Elevation of Costa Rica", x = "Elevation (m)")
+hist(df_country_cr$elev, main = "Elevation of Costa Rica", xlab = "Elevation (m)")
 
 # One outlier observed at 3000 m elevation was removed to prevent skewing the regression model
-# RJ- plotted histogram using ggplot (for ease in editing), and without using extra variables
 
 #Find the elevation count for Costa Rica
-# RJ - edited to not require a df_country_cr dataframe (more dynamic) 
-total_specimens_cr <- fireflies %>%
-  filter(Country == "Costa Rica", !is.na(elev), elev < 3000) %>%
+total_specimens_cr <- df_country_cr %>%
+  filter(!is.na(elev)) %>%
+  filter(elev < 3000) %>% 
   count(elev, sort = TRUE)
+
 total_specimens_cr
 
 # Check if NA removed and explore the data
@@ -215,8 +288,7 @@ specimen_richness <- total_specimens_cr$n # Y-axis
 model <- lm(specimen_richness ~ richness_elev, data = total_specimens_cr)
 summary(model)
 
-### PLOT 4: linear regression for elevation ----------------
-
+# Plot linear regression for elevation
 ggplot(total_specimens_cr, aes(x = richness_elev, y = specimen_richness)) +
   geom_point(size = 3, color = "darkgreen") +
   geom_smooth(method = "lm", color = "red", se = TRUE) +
@@ -227,26 +299,23 @@ ggplot(total_specimens_cr, aes(x = richness_elev, y = specimen_richness)) +
   ) +
   theme_minimal(base_size = 14)
 
-### PLOT 5: Venn Diagram for Fireflies in Top 5 Countries -------
+
+### 6. Venn Diagram for Fireflies in Top 5 Countries -------
 # NOTE: when plotting the venn diagram, it does not create a separate plot, but will plot on top of the current plot, therefore, grid.newpage() must be used
-
-bin_list <- fireflies %>%
-  filter(Country %in% top_countries$Country, !is.na(BINs), BINs != "") %>%
-  group_by(Country) %>%
-  summarise(BINs = list(unique(BINs))) %>%
-  deframe()
-
 venn.plot <- venn.diagram(
-  x = bin_list,
+  x = list(
+    Canada = unique(na.omit(df_country_can$bin_uri)),
+    `United States` = unique(na.omit(df_country_us$bin_uri)),
+    `Costa Rica` = unique(na.omit(df_country_cr$bin_uri)),
+    `Malaysia` = unique(na.omit(df_country_m$bin_uri)),
+    `Peru` = unique(na.omit(df_country_p$bin_uri))
+  ),
   filename = NULL,
-  fill = viridis::viridis(length(bin_list)),  
+  fill = c("red", "blue", "green", "Yellow", "Purple"),
   alpha = 0.5,
   cex = 1.2,
   cat.cex = 1.2,
   main = "Overlap of BINs (Top 5 Countries)"
 )
-
 grid.newpage()
 grid.draw(venn.plot)
-
-# RJ - removed hardcoding for this plot (more dynamic), changed it to viridis for accessibility 
