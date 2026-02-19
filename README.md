@@ -11,16 +11,19 @@ By analyzing global BIN distribution and species richness, this study evaluates 
 # Methods
 All analyses were conducted in R.
 
-## 1. Data Processing
+## 1. Dataset Description
+The dataset was obtained from boldsystems.org under the Lampyridae[tax], and saved as a TSV file.
+
+## 2. Data Processing
 - Filtered dataset to identify the top five countries by record count
 - Calculated species richness and BIN richness per country
 - Subset tropical region data (Costa Rica) for elevation analysis
 
-## 2. Statistical Analysis
+## 3. Statistical Analysis
 - Computed species and BIN richness metrics
 - Performed linear regression to assess the relationship between elevation and firefly richness
 
-## 3. Visualization
+## 4. Visualization
 - Double bar plot comparing species vs. BIN richness (Top 5 countries)
 - Global world map displaying BIN richness distribution
 - Linear regression plot illustrating elevation trends
